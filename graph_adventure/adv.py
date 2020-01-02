@@ -3,6 +3,7 @@ from player import Player
 from world import World
 from adv_room import roomGraph
 import random
+from utils import bfs
 
 # Load world
 world = World()
@@ -16,86 +17,100 @@ world = World()
 roomGraph = roomGraph
 
 world.loadGraph(roomGraph)
-world.printRooms()
+# world.printRooms()
 
 player = Player("Name", world.startingRoom)
-player_graph = {world.startingRoom.id:{}}
-opposite_map = {"n":"s","e":"w","w":"e","s":"n"}
+player_graph = {world.startingRoom.id: {}}
+opposite_map = {"n": "s", "e": "w", "w": "e", "s": "n"}
 traversalPath = []
-visited_rooms_list = [0,]
-
-# def move(direction)): 
-#     previous_room = player.currentRoom.id
-#     player.travel(direction)
-#     traversalPath.append(direction)
-#     player_graph[previous_room][direction]=player.currentRoom.id
-#     new_exits = player.currentRoom.get_exits()
-#     if player.currentRoom.id not in player_graph.keys():
-#         player_graph[player.currentRoom.id] = {i:"?" for i in new_exits}
-#     player_graph[player.currentRoom.id][opposite_map[direction]] = previous_room
+visited_rooms_list = [
+    0,
+]
 
 exits = player.currentRoom.get_exits()
-player_graph[player.currentRoom.id] = {i:"?" for i in exits}
-player_graph[player.currentRoom.id]["breadcrumb"] = "w"
-player_graph[player.currentRoom.id]["unexplored"] = [player.currentRoom.id]
+player_graph[player.currentRoom.id] = {i: "?" for i in exits}
+player_graph[player.currentRoom.id]["breadcrumb"] = None
+player_graph[player.currentRoom.id]["unexplored"] = ["n", "s", "e", "w"]
 bread_crumb = False
-# import pdb;pdb.set_trace()
-while len(player_graph)<440:
-    
-    direction = None
-   
+while len(traversalPath) < 2000:
 
-    previous_room = player.currentRoom.id
+    direction = None
+    if player.currentRoom.id ==0:
+        import pdb
+        pdb.set_trace()
+        
     
+    previous_room = player.currentRoom.id
     if bread_crumb == True:
-        if player_graph[player.currentRoom.id]["unexplored"] is not None:
-            for key,value in player_graph[player.currentRoom.id].items():
-                if (key in ["n","s","e","w"]) and (value =="?"):
+        if len(player_graph[player.currentRoom.id]["unexplored"])>0:
+            for key, value in player_graph[player.currentRoom.id].items():
+                if (key in ["n", "s", "e", "w"]) and (value == "?"):
                     direction = key
                     break
-                elif key in ["n","s","e","w"]:
-                    if value==player_graph[player.currentRoom.id]["unexplored"]:
+                elif key in ["n", "s", "e", "w"]:
+                    if value == player_graph[player.currentRoom.id]["unexplored"]:
                         direction = key
-    
+
     bread_crumb = False
 
-    
     if direction is None:
-        for key,value in player_graph[player.currentRoom.id].items():
-            if (key in ["n","s","e","w"]) and (value == "?"):
+        for key, value in player_graph[player.currentRoom.id].items():
+            if (key in ["n", "s", "e", "w"]) and (value == "?"):
                 direction = key
+                break
 
-    
-    
-    if direction == None:
-        direction=player_graph[player.currentRoom.id]["breadcrumb"]
+    if direction is None:
+        if player_graph[player.currentRoom.id]["breadcrumb"] is None:
+            if len(player_graph[player.currentRoom.id]["unexplored"]) > 0:
+                direction = player_graph[player.currentRoom.id]["unexplored"].pop()
+            else:
+                nr = [ i for i in player_graph if len(player_graph[i]["unexplored"])>0]
+                path = bfs(player, player.currentRoom.id, nr[0], player_graph)
+                for ii, jj in enumerate(path):
+                    try:
+                        next_room = path[ii + 1]
+                        for direction, room in player_graph[jj].items():
+                            if room == next_room:
+                                player.travel(direction)
+                                traversalPath.append(direction)
+                                visited_rooms_list.append(player.currentRoom.id)
+                    except:
+                        break
+                    
+        else:
+            direction = player_graph[player.currentRoom.id]["breadcrumb"]
         bread_crumb = True
-    
+    try:
+        player_graph[previous_room]["unexplored"].remove(direction)
+    except ValueError:
+        pass
     
     player.travel(direction)
     traversalPath.append(direction)
     visited_rooms_list.append(player.currentRoom.id)
-    
-    player_graph[previous_room][direction]=player.currentRoom.id
+
+    player_graph[previous_room][direction] = player.currentRoom.id
     new_exits = player.currentRoom.get_exits()
 
     if player.currentRoom.id not in player_graph.keys():
-        player_graph[player.currentRoom.id] = {i:"?" for i in new_exits}
+        player_graph[player.currentRoom.id] = {i: "?" for i in new_exits}
         player_graph[player.currentRoom.id]["breadcrumb"] = opposite_map[direction]
+        player_graph[player.currentRoom.id]["unexplored"] = []
         if player_graph[previous_room]["unexplored"] is not None:
-            player_graph[player.currentRoom.id]["unexplored"] = previous_room
-    
-    
+            for key in player_graph[player.currentRoom.id].keys():
+                if player_graph[player.currentRoom.id]["breadcrumb"] == key:
+                    pass
+                elif player_graph[player.currentRoom.id][key] == "?":
+                    player_graph[player.currentRoom.id]["unexplored"].append(key)
 
-    player_graph[player.currentRoom.id][opposite_map[direction]] = previous_room
-    
-    # elif player_graph[previous_room]["unexplored"] is None:
-    #     if player
+    try:
+        player_graph[player.currentRoom.id][opposite_map[direction]] = previous_room
+    except:
+        pass
 # FILL THIS IN
 
 
-print(visited_rooms_list)
-print(player_graph[218])
+# print(visited_rooms_list)
 
 # TRAVERSAL TEST
 visited_rooms = set()
@@ -106,17 +121,18 @@ for move in traversalPath:
     visited_rooms.add(player.currentRoom.id)
 not_visited_rooms = [i for i in list(roomGraph.keys()) if i not in visited_rooms]
 if len(visited_rooms) == len(roomGraph):
-    print(f"TESTS PASSED: {len(traversalPath)} moves, {len(visited_rooms)} rooms visited")
+    print(
+        f"TESTS PASSED: {len(traversalPath)} moves, {len(visited_rooms)} rooms visited"
+    )
 else:
     print("TESTS FAILED: INCOMPLETE TRAVERSAL")
     print(f"{len(roomGraph) - len(visited_rooms)} unvisited rooms")
 
     print(sorted(not_visited_rooms))
     print(len(traversalPath))
-    o = open("path.txt","w")
-    o.write(", ".join([str(i) for i in visited_rooms_list]))
-    o.close()
-
+    # o = open("path.txt", "w")
+    # o.write(", ".join([str(i) for i in visited_rooms_list]))
+    # o.close()
 
 
 #######
