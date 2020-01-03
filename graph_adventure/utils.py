@@ -39,3 +39,28 @@ def bfs(player, starting_vertex, destination_vertex,player_graph):
                         q.enqueue(path_copy)
                 else:
                     break
+    
+def unexplored_directions(player_graph, room):
+    unexplored_directions = []
+    for i in ["n","s","e","w"]:
+        try:
+            if player_graph[room][i] == "?":
+                unexplored_directions.append(i)
+        except KeyError:
+            pass
+    return unexplored_directions
+
+def find_unexplored_room(player_graph):
+    """get a new route"""
+    for i in player_graph:
+        ii = unexplored_directions(player_graph,i)
+        if len(ii)>0:
+            return i
+def find_room_direction(room,next_room):
+    for i in ["n","s","e","w"]:
+        try:
+            if room[i] == next_room:
+                return i
+        except KeyError:
+            pass
+        
